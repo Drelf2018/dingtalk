@@ -62,7 +62,7 @@ func (b *Bot) Send(msg Msg, handlers ...SendHandler) error {
 // SendTextWithContext 携带上下文发送文本类型消息
 func (b *Bot) SendTextWithContext(ctx context.Context, content string, handlers ...SendHandler) error {
 	if !b.ContainsAnyKeyword(content) {
-		content = fmt.Sprintf("%s【%s】", content, b.Keywords[0])
+		content += b.Keywords[0]
 	}
 	return b.SendWithContext(ctx, Text{Content: content}, handlers...)
 }
@@ -73,27 +73,75 @@ func (b *Bot) SendText(content string, handlers ...SendHandler) error {
 }
 
 // SendLinkWithContext 携带上下文发送链接类型消息
-func (b *Bot) SendLinkWithContext(ctx context.Context, title, text, picURL, msgURL string, handlers ...SendHandler) error {
+func (b *Bot) SendLinkWithContext(ctx context.Context, title, text, msgURL, picURL string, handlers ...SendHandler) error {
 	if !b.ContainsAnyKeyword(title) && !b.ContainsAnyKeyword(text) {
-		text = fmt.Sprintf("%s【%s】", text, b.Keywords[0])
+		text += b.Keywords[0]
 	}
-	return b.SendWithContext(ctx, Link{MessageURL: msgURL, Title: title, PicURL: picURL, Text: text}, handlers...)
+	return b.SendWithContext(ctx, Link{Title: title, Text: text, MessageURL: msgURL, PicURL: picURL}, handlers...)
 }
 
 // SendLink 发送链接类型消息
-func (b *Bot) SendLink(title, text, picURL, msgURL string, handlers ...SendHandler) error {
-	return b.SendLinkWithContext(context.Background(), title, text, picURL, msgURL, handlers...)
+func (b *Bot) SendLink(title, text, msgURL, picURL string, handlers ...SendHandler) error {
+	return b.SendLinkWithContext(context.Background(), title, text, msgURL, picURL, handlers...)
 }
 
 // SendMarkdownWithContext 携带上下文发送 markdown 类型消息
 func (b *Bot) SendMarkdownWithContext(ctx context.Context, title, text string, handlers ...SendHandler) error {
 	if !b.ContainsAnyKeyword(title) && !b.ContainsAnyKeyword(text) {
-		text = fmt.Sprintf("%s【%s】", text, b.Keywords[0])
+		text += b.Keywords[0]
 	}
-	return b.SendWithContext(ctx, Markdown{Text: text, Title: title}, handlers...)
+	return b.SendWithContext(ctx, Markdown{Title: title, Text: text}, handlers...)
 }
 
 // SendMarkdown 发送 markdown 类型消息
 func (b *Bot) SendMarkdown(title, text string, handlers ...SendHandler) error {
 	return b.SendMarkdownWithContext(context.Background(), title, text, handlers...)
+}
+
+// SendSingleActionCardWithContext 携带上下文发送单独 actionCard 类型消息
+func (b *Bot) SendSingleActionCardWithContext(ctx context.Context, title, text, singleTitle, singleURL string, handlers ...SendHandler) error {
+	if !b.ContainsAnyKeyword(title) && !b.ContainsAnyKeyword(text) {
+		text += b.Keywords[0]
+	}
+	return b.SendWithContext(ctx, ActionCard{Title: title, Text: text, SingleTitle: singleTitle, SingleURL: singleURL}, handlers...)
+}
+
+// SendSingleActionCard 发送单独 actionCard 类型消息
+func (b *Bot) SendSingleActionCard(title, text, singleTitle, singleURL string, handlers ...SendHandler) error {
+	return b.SendSingleActionCardWithContext(context.Background(), title, text, singleTitle, singleURL, handlers...)
+}
+
+// SendActionCardWithContext 携带上下文发送 actionCard 类型消息
+func (b *Bot) SendActionCardWithContext(ctx context.Context, title, text string, btns []ActionCardBtn, handlers ...SendHandler) error {
+	if !b.ContainsAnyKeyword(title) && !b.ContainsAnyKeyword(text) {
+		text += b.Keywords[0]
+	}
+	return b.SendWithContext(ctx, ActionCard{Title: title, Text: text, Btns: btns}, handlers...)
+}
+
+// SendActionCard 发送 actionCard 类型消息
+func (b *Bot) SendActionCard(title, text string, btns []ActionCardBtn, handlers ...SendHandler) error {
+	return b.SendActionCardWithContext(context.Background(), title, text, btns, handlers...)
+}
+
+// SendFeedCardWithContext 携带上下文发送 feedCard 类型消息
+func (b *Bot) SendFeedCardWithContext(ctx context.Context, links []FeedCardLink, handlers ...SendHandler) error {
+	if len(b.Keywords) != 0 {
+		var hasKeyword bool
+		for i := range links {
+			if b.ContainsAnyKeyword(links[i].Title) {
+				hasKeyword = true
+				break
+			}
+		}
+		if !hasKeyword {
+			links[len(links)-1].Title += b.Keywords[0]
+		}
+	}
+	return b.SendWithContext(ctx, FeedCard{Links: links}, handlers...)
+}
+
+// SendFeedCard 发送 feedCard 类型消息
+func (b *Bot) SendFeedCard(links []FeedCardLink, handlers ...SendHandler) error {
+	return b.SendFeedCardWithContext(context.Background(), links, handlers...)
 }

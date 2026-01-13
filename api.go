@@ -74,6 +74,8 @@ func (*Send) RawURL() string {
 	return "https://oapi.dingtalk.com/robot/send"
 }
 
+var _ req.API = (*Send)(nil)
+
 func (s *Send) Body(r *http.Request, value reflect.Value, body []reflect.StructField) (io.Reader, error) {
 	if s.Msg != nil {
 		s.MsgType = s.Msg.Type()
@@ -89,6 +91,8 @@ func (s *Send) Body(r *http.Request, value reflect.Value, body []reflect.StructF
 	return buf, nil
 }
 
+var _ req.APIBody = (*Send)(nil)
+
 func (s *Send) Query(r *http.Request, value reflect.Value, query []reflect.StructField) (err error) {
 	if s.Secret != "" {
 		s.Timestamp, s.Sign, err = GenerateSign(s.Secret)
@@ -100,8 +104,6 @@ func (s *Send) Query(r *http.Request, value reflect.Value, query []reflect.Struc
 	return nil
 }
 
-var _ req.API = (*Send)(nil)
-var _ req.APIBody = (*Send)(nil)
 var _ req.APIQuery = (*Send)(nil)
 
 // SendResponse 发送消息响应体
