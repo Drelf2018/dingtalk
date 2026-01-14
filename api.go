@@ -121,6 +121,7 @@ func (r SendResponse) Unwrap() error {
 
 var _ req.Unwrap = SendResponse{}
 
+// 发送消息接口的前处理器，可以用来设置@、指定消息UUID和修改请求参数
 type SendHandler func(*Send) error
 
 // AtAll @所有人
