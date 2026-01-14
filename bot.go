@@ -11,11 +11,20 @@ import (
 
 // Bot 钉钉机器人
 type Bot struct {
-	Name     string        // 机器人名称，用于打印错误信息
-	Token    string        // 调用接口的凭证
-	Secret   string        // 机器人安全密钥
-	Timeout  time.Duration // 请求超时时间，非零值时生效
-	Keywords []string      // 自定义关键词，不为空且文本中不包含任意一个关键词时会自动在文本末尾添加第一个关键词
+	// 机器人名称
+	Name string `json:"name" yaml:"name" toml:"name" long:"name"`
+
+	// 调用接口的凭证
+	Token string `json:"token" yaml:"token" toml:"token" long:"token"`
+
+	// 机器人安全密钥
+	Secret string `json:"secret" yaml:"secret" toml:"secret" long:"secret"`
+
+	// 请求超时时间，非零值时生效
+	Timeout time.Duration `json:"timeout" yaml:"timeout" toml:"timeout" long:"timeout"`
+
+	// 自定义关键词，不为空且文本中不包含任意一个关键词时会自动在文本末尾添加第一个关键词
+	Keywords []string `json:"keywords" yaml:"keywords" toml:"keywords" long:"keywords"`
 }
 
 // ContainsAnyKeyword 检测字符串是否包含任意一个关键词，关键词切片为空也返回真
