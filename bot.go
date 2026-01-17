@@ -2,7 +2,6 @@ package dingtalk
 
 import (
 	"context"
-	"fmt"
 	"strings"
 	"time"
 
@@ -57,10 +56,7 @@ func (b *Bot) SendWithContext(ctx context.Context, msg Msg, handlers ...SendHand
 		defer cancel()
 	}
 	_, err := req.ResultWithContext[SendResponse](ctx, api)
-	if err != nil {
-		return fmt.Errorf("dingtalk: Bot %s failed to send: %w", b.Name, err)
-	}
-	return nil
+	return err
 }
 
 // Send 发送消息

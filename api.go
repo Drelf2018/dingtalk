@@ -112,11 +112,15 @@ type SendResponse struct {
 	ErrCode int    `json:"errcode"`
 }
 
+func (r SendResponse) Error() string {
+	return fmt.Sprintf("dingtalk: failed to send: %s (%d)", r.ErrMsg, r.ErrCode)
+}
+
 func (r SendResponse) Unwrap() error {
 	if r.ErrCode == 0 {
 		return nil
 	}
-	return fmt.Errorf("%s (%d)", r.ErrMsg, r.ErrCode)
+	return r
 }
 
 var _ req.Unwrap = SendResponse{}
