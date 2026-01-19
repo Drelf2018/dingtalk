@@ -175,11 +175,29 @@ func (b *Bot) SendFeedCard(links []FeedCardLink, handlers ...SendHandler) error 
 	return b.SendFeedCardWithContext(context.Background(), links, handlers...)
 }
 
+// Funcs 设置函数
+func (b *Bot) Funcs(funcMap template.FuncMap) *Bot {
+	if b.Template == nil {
+		b.Template = template.New("")
+	}
+	b.Template.Funcs(funcMap)
+	return b
+}
+
+// NewTemplate 为机器人创建新模板
+func (b *Bot) NewTemplate(name, text string) error {
+	if b.Template == nil {
+		b.Template = template.New("")
+	}
+	_, err := b.Template.New(name).Parse(text)
+	return err
+}
+
 // ErrNilMsg 消息为空
 var ErrNilMsg = errors.New("dingtalk: msg cannot be nil")
 
-// ParseTemplate 为机器人创建模板，传入消息的字段导出、类型是字符串以及值不为空时，才会创建模板
-func (b *Bot) ParseTemplate(msg Msg) error {
+// Parse 为机器人创建模板，传入消息的字段导出、类型是字符串以及值不为空时，才会创建模板
+func (b *Bot) Parse(msg Msg) error {
 	if msg == nil {
 		return ErrNilMsg
 	}
@@ -217,8 +235,8 @@ func (b *Bot) ParseTemplate(msg Msg) error {
 // ErrNilTemplate 机器人自定义模板为空
 var ErrNilTemplate = errors.New("dingtalk: template cannot be nil")
 
-// FillMsg 填充消息字段值
-func FillMsg(tmpl *template.Template, data any, msg Msg) (Msg, error) {
+// Fill 填充消息字段值，传入的消息为结构体，会新建一个结构体对象并返回，如果传入的消息为结构体指针，则不会额外返回值
+func Fill(tmpl *template.Template, data any, msg Msg) (Msg, error) {
 	if tmpl == nil {
 		return nil, ErrNilTemplate
 	}
@@ -226,18 +244,21 @@ func FillMsg(tmpl *template.Template, data any, msg Msg) (Msg, error) {
 		return nil, ErrNilMsg
 	}
 	// 如果传入的是不可设置的结构体对象，则创建对应的指针并设置为当前对象
+	var elem reflect.Value
 	val := reflect.ValueOf(msg)
 	if val.Kind() != reflect.Pointer {
 		newValue := reflect.New(val.Type())
-		newValue.Elem().Set(val)
-		val = newValue
+		elem = newValue.Elem()
+		elem.Set(val)
+	} else {
+		elem = val.Elem()
 	}
 	// 再获取指针里的值，就可以设置字段值了
-	elem := val.Elem()
 	if elem.Kind() != reflect.Struct {
 		return nil, fmt.Errorf("dingtalk: invalid msg type: expected (a pointer to) a struct, got: %T", msg)
 	}
 	// 遍历字段，字段导出、类型是字符串、值为空以及对应的模板存在时，才解析模板并设置值
+	var b strings.Builder
 	structType := elem.Type()
 	structName := structType.Name()
 	for i := 0; i < structType.NumField(); i++ {
@@ -254,23 +275,26 @@ func FillMsg(tmpl *template.Template, data any, msg Msg) (Msg, error) {
 		if t == nil {
 			continue
 		}
-		var b strings.Builder
 		if err := t.Execute(&b, data); err != nil {
 			return nil, fmt.Errorf("dingtalk: failed to execute template %q: %w", templateName, err)
 		}
 		field.SetString(b.String())
+		b.Reset()
 	}
-	return val.Interface().(Msg), nil
+	if val.Kind() != reflect.Pointer {
+		return elem.Interface().(Msg), nil
+	}
+	return nil, nil
 }
 
-// FillMsg 填充消息字段值
-func (b *Bot) FillMsg(data any, msg Msg) (Msg, error) {
-	return FillMsg(b.Template, data, msg)
+// Fill 填充消息字段值，传入的消息为结构体，会新建一个结构体对象并返回，如果传入的消息为结构体指针，则不会额外返回值
+func (b *Bot) Fill(data any, msg Msg) (Msg, error) {
+	return Fill(b.Template, data, msg)
 }
 
 // SendTemplateMsgWithContext 携带上下文发送模板消息
 func (b *Bot) SendTemplateMsgWithContext(ctx context.Context, data any, msg Msg, handlers ...SendHandler) (err error) {
-	msg, err = b.FillMsg(data, msg)
+	msg, err = b.Fill(data, msg)
 	if err != nil {
 		return
 	}
