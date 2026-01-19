@@ -10,7 +10,7 @@
 - [整体跳转 ActionCard](#整体跳转-actioncard-类型)
 - [独立跳转 ActionCard](#独立跳转-actioncard-类型)
 - [FeedCard](#feedcard-类型)
-- [模板](#模板类型)
+- [模板](#template-模板类型)
 
 ## 配置
 
@@ -131,7 +131,7 @@ type FeedCardLink struct {
 func (b *Bot) SendFeedCard(links []FeedCardLink, handlers ...SendHandler) error
 ```
 
-### 模板类型
+### Template 模板类型
 
 特殊的，你可以用 `text/template` 包下的模板工具来发送消息。
 

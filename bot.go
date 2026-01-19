@@ -217,13 +217,13 @@ func (b *Bot) ParseTemplate(msg Msg) error {
 // ErrNilTemplate 机器人自定义模板为空
 var ErrNilTemplate = errors.New("dingtalk: template cannot be nil")
 
-// SendTemplateMsgWithContext 携带上下文发送模板消息
-func (b *Bot) SendTemplateMsgWithContext(ctx context.Context, data any, msg Msg, handlers ...SendHandler) error {
-	if b.Template == nil {
-		return ErrNilTemplate
+// FillMsg 填充消息字段值
+func FillMsg(tmpl *template.Template, data any, msg Msg) (Msg, error) {
+	if tmpl == nil {
+		return nil, ErrNilTemplate
 	}
 	if msg == nil {
-		return ErrNilMsg
+		return nil, ErrNilMsg
 	}
 	// 如果传入的是不可设置的结构体对象，则创建对应的指针并设置为当前对象
 	val := reflect.ValueOf(msg)
@@ -235,7 +235,7 @@ func (b *Bot) SendTemplateMsgWithContext(ctx context.Context, data any, msg Msg,
 	// 再获取指针里的值，就可以设置字段值了
 	elem := val.Elem()
 	if elem.Kind() != reflect.Struct {
-		return fmt.Errorf("dingtalk: invalid msg type: expected (a pointer to) a struct, got: %T", msg)
+		return nil, fmt.Errorf("dingtalk: invalid msg type: expected (a pointer to) a struct, got: %T", msg)
 	}
 	// 遍历字段，字段导出、类型是字符串、值为空以及对应的模板存在时，才解析模板并设置值
 	structType := elem.Type()
@@ -250,17 +250,31 @@ func (b *Bot) SendTemplateMsgWithContext(ctx context.Context, data any, msg Msg,
 			continue
 		}
 		templateName := structName + "." + fieldType.Name
-		t := b.Template.Lookup(templateName)
+		t := tmpl.Lookup(templateName)
 		if t == nil {
 			continue
 		}
 		var b strings.Builder
 		if err := t.Execute(&b, data); err != nil {
-			return fmt.Errorf("dingtalk: failed to execute template %q: %w", templateName, err)
+			return nil, fmt.Errorf("dingtalk: failed to execute template %q: %w", templateName, err)
 		}
 		field.SetString(b.String())
 	}
-	return b.SendWithContext(ctx, val.Interface().(Msg), handlers...)
+	return val.Interface().(Msg), nil
+}
+
+// FillMsg 填充消息字段值
+func (b *Bot) FillMsg(data any, msg Msg) (Msg, error) {
+	return FillMsg(b.Template, data, msg)
+}
+
+// SendTemplateMsgWithContext 携带上下文发送模板消息
+func (b *Bot) SendTemplateMsgWithContext(ctx context.Context, data any, msg Msg, handlers ...SendHandler) (err error) {
+	msg, err = b.FillMsg(data, msg)
+	if err != nil {
+		return
+	}
+	return b.SendWithContext(ctx, msg, handlers...)
 }
 
 // SendTemplateMsg 发送模板消息
