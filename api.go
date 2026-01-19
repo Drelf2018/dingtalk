@@ -112,19 +112,6 @@ type SendResponse struct {
 	ErrCode int    `json:"errcode"`
 }
 
-func (r SendResponse) Error() string {
-	return fmt.Sprintf("dingtalk: failed to send: %s (%d)", r.ErrMsg, r.ErrCode)
-}
-
-func (r SendResponse) Unwrap() error {
-	if r.ErrCode == 0 {
-		return nil
-	}
-	return r
-}
-
-var _ req.Unwrap = SendResponse{}
-
 // 发送消息接口的前处理器，可以用来设置@、指定消息UUID和修改请求参数
 type SendHandler func(*Send) error
 

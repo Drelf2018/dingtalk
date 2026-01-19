@@ -1,6 +1,6 @@
 # dingtalk
 
-钉钉群聊机器人，基于原项目 [`blinkbean/dingtalk`](https://github.com/blinkbean/dingtalk) 重构
+钉钉群聊机器人，基于原项目 [`blinkbean/dingtalk`](https://github.com/blinkbean/dingtalk) 重构。
 
 目前支持发送的消息类型有：
 
@@ -10,6 +10,7 @@
 - [整体跳转 ActionCard](#整体跳转-actioncard-类型)
 - [独立跳转 ActionCard](#独立跳转-actioncard-类型)
 - [FeedCard](#feedcard-类型)
+- [模板](#模板类型)
 
 ## 配置
 
@@ -28,33 +29,30 @@ go get github.com/Drelf2018/dingtalk
 
 ### 初始化
 
+参考机器人结构体中字段的注释，根据需要填入需要的值。
+
 ```go
 // Bot 钉钉机器人
 type Bot struct {
-	// 机器人名称
+	// 名称，可自定义
 	Name string `json:"name" yaml:"name" toml:"name" long:"name"`
 
-	// 调用接口的凭证
+	// 调用接口的凭证，钉钉提供的 Webhook 链接中 access_token 的值
 	Token string `json:"token" yaml:"token" toml:"token" long:"token"`
 
-	// 机器人安全密钥
+	// 安全密钥，创建机器人时在安全设置项选择了加签后，钉钉提供的 SEC 开头的字符串
 	Secret string `json:"secret" yaml:"secret" toml:"secret" long:"secret"`
 
-	// 请求超时时间，非零值时生效
+	// 自定义关键词，创建机器人时在安全设置项填入的所有关键词。当消息文本中不包含任何一个关键词时，会自动在文本末尾添加第一个关键词
+	Keywords []string `json:"keywords" yaml:"keywords" toml:"keywords" long:"keywords"`
+
+	// 全局请求超时时间，值为正时生效
 	Timeout time.Duration `json:"timeout" yaml:"timeout" toml:"timeout" long:"timeout"`
 
-	// 自定义关键词，不为空且文本中不包含任意一个关键词时会自动在文本末尾添加第一个关键词
-	Keywords []string `json:"keywords" yaml:"keywords" toml:"keywords" long:"keywords"`
+	// 自定义模板，使用“消息结构体名.字段名”的名称创建模板后，用于自动填充字符串类型字段值
+	Template *template.Template
 }
 ```
-
-上面是我们的机器人模型，请根据需要填入字段值：
-
-- `Name` 是机器人名称，可自定义，用于请求失败时打印错误提示。
-- `Token` 是机器人凭证，也就是钉钉提供的 `Webhook` 链接中 `access_token` 的值。
-- `Secret` 是机器人密钥，创建机器人时安全设置项选择了加签后，钉钉提供的 `SEC` 开头的字符串。
-- `Timeout` 是机器人超时时间，默认不提供，即不设置超时
-- `Keywords` 是机器人自定义关键词，创建机器人时安全设置项选择了此项后的所有关键词，不要求顺序。当消息文本中不包含任何一个关键词时，会自动在文本末尾添加第一个关键词。
 
 ## 使用
 
@@ -103,8 +101,11 @@ func (b *Bot) SendSingleActionCard(title, text, singleTitle, singleURL string, h
 ```go
 // ActionCardBtn actionCard 类型消息的按钮
 type ActionCardBtn struct {
-	Title     string `json:"title,omitempty"`     // 按钮上显示的文本
-	ActionURL string `json:"actionURL,omitempty"` // 按钮跳转的 URL
+	// 按钮上显示的文本
+	Title string `json:"title" yaml:"title" toml:"title" long:"title"`
+
+	// 按钮跳转的 URL
+	ActionURL string `json:"actionURL" yaml:"actionURL" toml:"actionURL" long:"actionURL"`
 }
 
 // SendActionCard 发送独立跳转 actionCard 类型消息
@@ -116,11 +117,28 @@ func (b *Bot) SendActionCard(title, text string, btns []ActionCardBtn, handlers 
 ```go
 // FeedCardLink feedCard 类型消息的内容
 type FeedCardLink struct {
-	Title      string `json:"title,omitempty"`      // feedCard 消息内每条内容的标题
-	MessageURL string `json:"messageURL,omitempty"` // feedCard 消息内每条内容上午跳转链接
-	PicURL     string `json:"picURL,omitempty"`     // feedCard 消息内每条内容的图片 URL ，建议使用上传媒体文件接口获取
+	// 每条内容的标题
+	Title string `json:"title" yaml:"title" toml:"title" long:"title"`
+
+	// 每条内容上午跳转链接
+	MessageURL string `json:"messageURL" yaml:"messageURL" toml:"messageURL" long:"messageURL"`
+
+	// 每条内容的图片 URL ，建议使用上传媒体文件接口获取
+	PicURL string `json:"picURL" yaml:"picURL" toml:"picURL" long:"picURL"`
 }
 
 // SendFeedCard 发送 feedCard 类型消息
 func (b *Bot) SendFeedCard(links []FeedCardLink, handlers ...SendHandler) error
+```
+
+### 模板类型
+
+特殊的，你可以用 `text/template` 包下的模板工具来发送消息。
+
+```go
+// ParseTemplate 为机器人创建模板，传入消息的字段导出、类型是字符串以及值不为空时，才会创建模板
+func (b *Bot) ParseTemplate(msg Msg) error
+
+// SendTemplateMsg 发送模板消息
+func (b *Bot) SendTemplateMsg(data any, msg Msg, handlers ...SendHandler) error
 ```
