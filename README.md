@@ -58,11 +58,11 @@ type Bot struct {
 ### SendHandler 请求处理器
 
 ```go
-// 发送消息接口的前处理器，可以用来设置@、指定消息UUID和修改请求参数
+// 发送消息接口的前处理器，可以用来设置密钥、设置消息UUID、设置@和修改请求参数
 type SendHandler func(*Send) error
 
-// 内置了四个常用的处理器，可自行在代码中查看使用方法
-var _ = []SendHandler{AtAll, AtMobile(""), AtUserID(""), UUID("")}
+// 内置了五个常用的处理器，可自行在代码中查看使用方法
+var _ = []SendHandler{Secret(""), UUID(""), AtAll, AtMobile(""), AtUserID("")}
 ```
 
 ### Text 文本类型

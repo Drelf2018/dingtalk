@@ -2,13 +2,8 @@ package dingtalk
 
 import (
 	"context"
-	"errors"
-	"fmt"
-	"reflect"
 	"strings"
 	"time"
-
-	"github.com/Drelf2018/req"
 )
 
 // Bot 钉钉机器人
@@ -45,38 +40,18 @@ func (b *Bot) ContainsAnyKeyword(text string) bool {
 	return false
 }
 
-// SendError 发送消息错误
-type SendError struct {
-	API     *Send
-	ErrMsg  string
-	ErrCode int
-}
-
-func (s SendError) Error() string {
-	return fmt.Sprintf("dingtalk: failed to send %T: %s (%d)", s.API.Msg, s.ErrMsg, s.ErrCode)
-}
-
 // SendWithContext 携带上下文发送消息
 func (b *Bot) SendWithContext(ctx context.Context, msg Msg, handlers ...SendHandler) error {
-	api := &Send{Secret: b.Secret, AccessToken: b.Token, Msg: msg}
-	for _, handler := range handlers {
-		if err := handler(api); err != nil {
-			return err
-		}
-	}
 	if b.Timeout > 0 {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, b.Timeout)
 		defer cancel()
 	}
-	r, err := req.ResultWithContext[SendResponse](ctx, api)
-	if err != nil {
-		return err
+	if b.Secret != "" {
+		handlers = append(handlers, Secret(b.Secret))
 	}
-	if r.ErrCode != 0 {
-		return SendError{API: api, ErrMsg: r.ErrMsg, ErrCode: r.ErrCode}
-	}
-	return nil
+	_, err := PostSendWithContext(ctx, b.Token, msg, handlers...)
+	return err
 }
 
 // Send 发送消息

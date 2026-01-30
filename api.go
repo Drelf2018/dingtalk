@@ -2,6 +2,7 @@ package dingtalk
 
 import (
 	"bytes"
+	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/base64"
@@ -24,7 +25,7 @@ func GenerateSign(secret string) (int64, string, error) {
 	timestamp := time.Now().UnixNano() / int64(time.Millisecond)
 	_, err := fmt.Fprintf(hmacSHA256, "%d\n%s", timestamp, secret)
 	if err != nil {
-		return 0, "", fmt.Errorf("failed to generate signature: %w", err)
+		return 0, "", fmt.Errorf("dingtalk: failed to generate signature: %w", err)
 	}
 	return timestamp, base64.StdEncoding.EncodeToString(hmacSHA256.Sum(nil)), nil
 }
@@ -38,8 +39,8 @@ type At struct {
 
 // Send 自定义机器人发送群消息
 type Send struct {
-	// 密钥，机器人安全设置页面，加签一栏下面显示的 SEC 开头的字符串，如果设置了该字段，会自动设置生成的加密签名
-	Secret string
+	// 要发送的消息
+	Msg Msg
 
 	// 自定义机器人调用接口的凭证
 	AccessToken string `req:"query"`
@@ -58,9 +59,6 @@ type Send struct {
 
 	// 被@的群成员信息
 	At At `req:"body,omitempty"`
-
-	// 要发送的消息
-	Msg Msg
 
 	// 请求头
 	ContentType string `req:"header" default:"application/json"`
@@ -93,27 +91,24 @@ func (s *Send) Body(r *http.Request, value reflect.Value, body []reflect.StructF
 
 var _ req.APIBody = (*Send)(nil)
 
-func (s *Send) Query(r *http.Request, value reflect.Value, query []reflect.StructField) (err error) {
-	if s.Secret != "" {
-		s.Timestamp, s.Sign, err = GenerateSign(s.Secret)
-		if err != nil {
-			return
-		}
-	}
-	method.AddQuery(r, value, query)
-	return nil
-}
-
-var _ req.APIQuery = (*Send)(nil)
-
-// SendResponse 发送消息响应体
-type SendResponse struct {
-	ErrMsg  string `json:"errmsg"`
-	ErrCode int    `json:"errcode"`
-}
-
 // 发送消息接口的前处理器，可以用来设置@、指定消息UUID和修改请求参数
 type SendHandler func(*Send) error
+
+// Secret 会自动设置生成的加密签名，密钥参数为机器人安全设置页面，加签一栏下面显示的 SEC 开头的字符串
+func Secret(secret string) SendHandler {
+	return func(s *Send) (err error) {
+		s.Timestamp, s.Sign, err = GenerateSign(secret)
+		return
+	}
+}
+
+// UUID 设置消息幂等
+func UUID(uuid string) SendHandler {
+	return func(s *Send) error {
+		s.MsgUUID = uuid
+		return nil
+	}
+}
 
 // AtAll @所有人
 func AtAll(s *Send) error {
@@ -137,12 +132,41 @@ func AtUserID(ids ...string) SendHandler {
 	}
 }
 
-// UUID 设置消息幂等
-func UUID(uuid string) SendHandler {
-	return func(s *Send) error {
-		s.MsgUUID = uuid
-		return nil
-	}
+var _ = []SendHandler{Secret(""), UUID(""), AtAll, AtMobile(""), AtUserID("")}
+
+// SendResponse 发送消息响应体
+type SendResponse struct {
+	ErrMsg  string `json:"errmsg"`
+	ErrCode int    `json:"errcode"`
 }
 
-var _ = []SendHandler{AtAll, AtMobile(""), AtUserID(""), UUID("")}
+// SendError 发送消息错误
+type SendError struct {
+	API     *Send
+	ErrMsg  string
+	ErrCode int
+}
+
+func (s SendError) Error() string {
+	return fmt.Sprintf("dingtalk: failed to send %T: %s (%d)", s.API.Msg, s.ErrMsg, s.ErrCode)
+}
+
+// PostSendWithContext 携带上下文发送消息
+func PostSendWithContext(ctx context.Context, token string, msg Msg, handlers ...SendHandler) (r SendResponse, err error) {
+	api := &Send{Msg: msg, AccessToken: token}
+	for _, handler := range handlers {
+		if err = handler(api); err != nil {
+			return
+		}
+	}
+	r, err = req.ResultWithContext[SendResponse](ctx, api)
+	if err == nil && r.ErrCode != 0 {
+		err = SendError{API: api, ErrMsg: r.ErrMsg, ErrCode: r.ErrCode}
+	}
+	return
+}
+
+// PostSendWithContext 发送消息
+func PostSend(token string, msg Msg, handlers ...SendHandler) (SendResponse, error) {
+	return PostSendWithContext(context.Background(), token, msg, handlers...)
+}
