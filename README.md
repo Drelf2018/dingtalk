@@ -48,9 +48,6 @@ type Bot struct {
 
 	// 全局请求超时时间，值为正时生效
 	Timeout time.Duration `json:"timeout" yaml:"timeout" toml:"timeout" long:"timeout"`
-
-	// 自定义模板，使用“消息结构体名.字段名”的名称创建模板后，用于自动填充字符串类型字段值
-	Template *template.Template
 }
 ```
 
@@ -129,16 +126,4 @@ type FeedCardLink struct {
 
 // SendFeedCard 发送 feedCard 类型消息
 func (b *Bot) SendFeedCard(links []FeedCardLink, handlers ...SendHandler) error
-```
-
-### Template 模板类型
-
-特殊的，你可以用 `text/template` 包下的模板工具来发送消息。
-
-```go
-// ParseTemplate 为机器人创建模板，传入消息的字段导出、类型是字符串以及值不为空时，才会创建模板
-func (b *Bot) ParseTemplate(msg Msg) error
-
-// SendTemplateMsg 发送模板消息
-func (b *Bot) SendTemplateMsg(data any, msg Msg, handlers ...SendHandler) error
 ```
