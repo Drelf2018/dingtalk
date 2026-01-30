@@ -92,8 +92,8 @@ func (b *Bot) SendMarkdown(title, text string, handlers ...SendHandler) error
 ### 整体跳转 ActionCard 类型
 
 ```go
-// SendSingleActionCard 发送整体跳转 actionCard 类型消息
-func (b *Bot) SendSingleActionCard(title, text, singleTitle, singleURL string, handlers ...SendHandler) error
+// SendActionCard 发送整体跳转 actionCard 类型消息
+func (b *Bot) SendActionCard(title, text, singleTitle, singleURL string, handlers ...SendHandler) error
 ```
 
 ### 独立跳转 ActionCard 类型
@@ -108,8 +108,8 @@ type ActionCardBtn struct {
 	ActionURL string `json:"actionURL" yaml:"actionURL" toml:"actionURL" long:"actionURL"`
 }
 
-// SendActionCard 发送独立跳转 actionCard 类型消息
-func (b *Bot) SendActionCard(title, text string, btns []ActionCardBtn, handlers ...SendHandler) error
+// SendActionsCard 发送独立跳转 actionCard 类型消息
+func (b *Bot) SendActionsCard(title, text string, btns []ActionCardBtn, handlers ...SendHandler) error
 ```
 
 ### FeedCard 类型

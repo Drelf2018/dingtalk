@@ -127,30 +127,30 @@ func (b *Bot) SendMarkdown(title, text string, handlers ...SendHandler) error {
 	return b.SendMarkdownWithContext(context.Background(), title, text, handlers...)
 }
 
-// SendSingleActionCardWithContext 携带上下文发送整体跳转 actionCard 类型消息
-func (b *Bot) SendSingleActionCardWithContext(ctx context.Context, title, text, singleTitle, singleURL string, handlers ...SendHandler) error {
+// SendActionCardWithContext 携带上下文发送整体跳转 actionCard 类型消息
+func (b *Bot) SendActionCardWithContext(ctx context.Context, title, text, singleTitle, singleURL string, handlers ...SendHandler) error {
 	if !b.ContainsAnyKeyword(title) && !b.ContainsAnyKeyword(text) {
 		text += b.Keywords[0]
 	}
 	return b.SendWithContext(ctx, ActionCard{Title: title, Text: text, SingleTitle: singleTitle, SingleURL: singleURL}, handlers...)
 }
 
-// SendSingleActionCard 发送整体跳转 actionCard 类型消息
-func (b *Bot) SendSingleActionCard(title, text, singleTitle, singleURL string, handlers ...SendHandler) error {
-	return b.SendSingleActionCardWithContext(context.Background(), title, text, singleTitle, singleURL, handlers...)
+// SendActionCard 发送整体跳转 actionCard 类型消息
+func (b *Bot) SendActionCard(title, text, singleTitle, singleURL string, handlers ...SendHandler) error {
+	return b.SendActionCardWithContext(context.Background(), title, text, singleTitle, singleURL, handlers...)
 }
 
-// SendActionCardWithContext 携带上下文发送独立跳转 actionCard 类型消息
-func (b *Bot) SendActionCardWithContext(ctx context.Context, title, text string, btns []ActionCardBtn, handlers ...SendHandler) error {
+// SendActionsCardWithContext 携带上下文发送独立跳转 actionCard 类型消息
+func (b *Bot) SendActionsCardWithContext(ctx context.Context, title, text string, btns []ActionCardBtn, handlers ...SendHandler) error {
 	if !b.ContainsAnyKeyword(title) && !b.ContainsAnyKeyword(text) {
 		text += b.Keywords[0]
 	}
-	return b.SendWithContext(ctx, ActionCard{Title: title, Text: text, Btns: btns}, handlers...)
+	return b.SendWithContext(ctx, ActionsCard{Title: title, Text: text, Btns: btns}, handlers...)
 }
 
-// SendActionCard 发送独立跳转 actionCard 类型消息
-func (b *Bot) SendActionCard(title, text string, btns []ActionCardBtn, handlers ...SendHandler) error {
-	return b.SendActionCardWithContext(context.Background(), title, text, btns, handlers...)
+// SendActionsCard 发送独立跳转 actionCard 类型消息
+func (b *Bot) SendActionsCard(title, text string, btns []ActionCardBtn, handlers ...SendHandler) error {
+	return b.SendActionsCardWithContext(context.Background(), title, text, btns, handlers...)
 }
 
 // SendFeedCardWithContext 携带上下文发送 feedCard 类型消息

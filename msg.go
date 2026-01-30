@@ -69,6 +69,27 @@ func (Markdown) Type() MsgType {
 
 var _ Msg = Markdown{}
 
+// ActionCard 整体跳转 actionCard 类型消息
+type ActionCard struct {
+	// 消息会话列表中展示的标题，非消息体的标题
+	Title string `json:"title" yaml:"title" toml:"title" long:"title"`
+
+	// actionCard 类型消息的正文内容，支持 markdown 语法
+	Text string `json:"text" yaml:"text" toml:"text" long:"text"`
+
+	// 按钮上显示的文本
+	SingleTitle string `json:"singleTitle,omitempty" yaml:"singleTitle" toml:"singleTitle" long:"singleTitle"`
+
+	// 点击 singleTitle 按钮触发的 URL
+	SingleURL string `json:"singleURL,omitempty" yaml:"singleURL" toml:"singleURL" long:"singleURL"`
+}
+
+func (ActionCard) Type() MsgType {
+	return MsgActionCard
+}
+
+var _ Msg = ActionCard{}
+
 // ActionCardBtn actionCard 类型消息的按钮
 type ActionCardBtn struct {
 	// 按钮上显示的文本
@@ -78,19 +99,13 @@ type ActionCardBtn struct {
 	ActionURL string `json:"actionURL" yaml:"actionURL" toml:"actionURL" long:"actionURL"`
 }
 
-// ActionCard actionCard 类型消息
-type ActionCard struct {
+// ActionsCard 独立跳转 actionCard 类型消息
+type ActionsCard struct {
 	// 消息会话列表中展示的标题，非消息体的标题
 	Title string `json:"title" yaml:"title" toml:"title" long:"title"`
 
 	// actionCard 类型消息的正文内容，支持 markdown 语法
 	Text string `json:"text" yaml:"text" toml:"text" long:"text"`
-
-	// 单个按钮的方案，设置此项和 singleURL 后 btns 无效
-	SingleTitle string `json:"singleTitle,omitempty" yaml:"singleTitle" toml:"singleTitle" long:"singleTitle"`
-
-	// 点击 singleTitle 按钮触发的 URL
-	SingleURL string `json:"singleURL,omitempty" yaml:"singleURL" toml:"singleURL" long:"singleURL"`
 
 	// 按钮的信息列表
 	Btns []ActionCardBtn `json:"btns,omitempty" yaml:"btns" toml:"btns" long:"btns"`
@@ -99,11 +114,11 @@ type ActionCard struct {
 	BtnOrientation string `json:"btnOrientation,omitempty" yaml:"btnOrientation" toml:"btnOrientation" long:"btnOrientation"`
 }
 
-func (ActionCard) Type() MsgType {
+func (ActionsCard) Type() MsgType {
 	return MsgActionCard
 }
 
-var _ Msg = ActionCard{}
+var _ Msg = ActionsCard{}
 
 // FeedCardLink feedCard 类型消息的内容
 type FeedCardLink struct {
