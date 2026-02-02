@@ -58,7 +58,7 @@ type Bot struct {
 ### SendHandler 请求处理器
 
 ```go
-// 发送消息接口的前处理器，可以用来设置密钥、设置消息UUID、设置@和修改请求参数
+// 发送消息接口的前处理器，可以用来生成的加密签名、设置消息幂等、设置@等
 type SendHandler func(*Send) error
 
 // 内置了五个常用的处理器，可自行在代码中查看使用方法

@@ -1,12 +1,10 @@
 package dingtalk
 
 import (
-	"bytes"
 	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -51,9 +49,6 @@ type Send struct {
 	// 开发者服务内当前系统时间戳，单位是毫秒，与请求调用时间误差不能超过 1 小时
 	Timestamp int64 `req:"query,omitempty"`
 
-	// 消息类型
-	MsgType MsgType `req:"body:msgtype"`
-
 	// 消息幂等，发消息时接口调用超时或未知错误等报错，开发者可使用同一个消息幂等重试，避免重复发出消息
 	MsgUUID string `req:"body:msgUuid,omitempty"`
 
@@ -75,23 +70,17 @@ func (*Send) RawURL() string {
 var _ req.API = (*Send)(nil)
 
 func (s *Send) Body(r *http.Request, value reflect.Value, body []reflect.StructField) (io.Reader, error) {
-	if s.Msg != nil {
-		s.MsgType = s.Msg.Type()
-	}
 	m := method.MakeJSONMap(r.Context(), value, body)
-	m[string(s.MsgType)] = s.Msg
-	buf := &bytes.Buffer{}
-	err := json.NewEncoder(buf).Encode(m)
-	if err != nil {
-		return nil, err
+	if s.Msg != nil {
+		m["msgtype"] = s.Msg.Type()
+		m[string(s.Msg.Type())] = s.Msg
 	}
-	buf.Truncate(buf.Len() - 1) // Seeing the source code of (*json.Encoder).Encode
-	return buf, nil
+	return method.NewJSONReader(m)
 }
 
 var _ req.APIBody = (*Send)(nil)
 
-// 发送消息接口的前处理器，可以用来设置@、指定消息UUID和修改请求参数
+// 发送消息接口的前处理器，可以用来生成的加密签名、设置消息幂等、设置@等
 type SendHandler func(*Send) error
 
 // Secret 会自动设置生成的加密签名，密钥参数为机器人安全设置页面，加签一栏下面显示的 SEC 开头的字符串
