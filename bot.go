@@ -2,6 +2,7 @@ package dingtalk
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"sync"
 	"time"
@@ -60,25 +61,23 @@ func (b *Bot) Wait() <-chan struct{} {
 		for i := 0; i < b.Limit; i++ {
 			b.limiter <- struct{}{}
 		}
-		// 用于重置通道
-		reset := func() {
-			for {
-				select {
-				case <-b.limiter:
-					// 每个分钟零秒时刻会清空通道
-				default:
-					// 再填入设置的限制量个数空对象
-					for i := 0; i < b.Limit; i++ {
-						b.limiter <- struct{}{}
-						// 防止积攒的请求突增
-						time.Sleep(100 * time.Millisecond)
-					}
-					return
-				}
-			}
-		}
 		// 每分钟触发一次重置
 		go func() {
+			// 用于重置通道
+			reset := func() {
+				for {
+					select {
+					case <-b.limiter:
+						// 每个分钟零秒时刻会清空通道
+					default:
+						// 再填入设置的限制量个数空对象
+						for i := 0; i < b.Limit; i++ {
+							b.limiter <- struct{}{}
+						}
+						return
+					}
+				}
+			}
 			// 先休眠至下一分钟零秒时刻
 			next := time.Now().Truncate(time.Minute).Add(time.Minute)
 			time.Sleep(time.Until(next))
@@ -98,13 +97,10 @@ func (b *Bot) Wait() <-chan struct{} {
 // SendWithContext 携带上下文发送消息
 func (b *Bot) SendWithContext(ctx context.Context, msg Msg, handlers ...SendHandler) error {
 	if b.Limit > 0 {
-		// 请求积攒十分钟仍未等到发送时机，则视为请求失败
-		timeout, cancel := context.WithTimeout(ctx, 10*time.Minute)
-		defer cancel()
 		select {
-		case <-timeout.Done():
-			return timeout.Err()
 		case <-b.Wait():
+		default:
+			return fmt.Errorf("dingtalk: sending rate limit exceeded: %v/min", b.Limit)
 		}
 	}
 	if b.Timeout > 0 {
