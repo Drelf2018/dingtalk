@@ -125,7 +125,7 @@ type FeedCardLink struct {
 	// 每条内容的标题
 	Title string `json:"title" yaml:"title" toml:"title" long:"title"`
 
-	// 每条内容上午跳转链接
+	// 每条内容的跳转链接
 	MessageURL string `json:"messageURL" yaml:"messageURL" toml:"messageURL" long:"messageURL"`
 
 	// 每条内容的图片 URL ，建议使用上传媒体文件接口获取
