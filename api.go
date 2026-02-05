@@ -15,19 +15,6 @@ import (
 	"github.com/Drelf2018/req/method"
 )
 
-// GenerateSign 生成加密时间戳和签名，加签的方式是将时间戳和密钥当做签名字符串，
-// 开发者服务内当前系统时间戳，单位是毫秒，与请求调用时间误差不能超过 1 小时，
-// 使用 HmacSHA256 算法计算签名，然后进行 Base64 编码，得到最终的签名
-func GenerateSign(secret string) (int64, string, error) {
-	hmacSHA256 := hmac.New(sha256.New, []byte(secret))
-	timestamp := time.Now().UnixNano() / int64(time.Millisecond)
-	_, err := fmt.Fprintf(hmacSHA256, "%d\n%s", timestamp, secret)
-	if err != nil {
-		return 0, "", fmt.Errorf("dingtalk: failed to generate signature: %w", err)
-	}
-	return timestamp, base64.StdEncoding.EncodeToString(hmacSHA256.Sum(nil)), nil
-}
-
 // At 被@的群成员信息
 type At struct {
 	IsAtAll   bool     `json:"isAtAll,omitempty"`   // 是否@所有人
@@ -80,8 +67,33 @@ func (s *Send) Body(r *http.Request, value reflect.Value, body []reflect.StructF
 
 var _ req.APIBody = (*Send)(nil)
 
-// 发送消息接口的前处理器，可以用来生成的加密签名、设置消息幂等、设置@等
+// GenerateSign 生成加密时间戳和签名，加签的方式是将时间戳和密钥当做签名字符串，
+// 开发者服务内当前系统时间戳，单位是毫秒，与请求调用时间误差不能超过 1 小时，
+// 使用 HmacSHA256 算法计算签名，然后进行 Base64 编码，得到最终的签名
+func GenerateSign(secret string) (int64, string, error) {
+	hmacSHA256 := hmac.New(sha256.New, []byte(secret))
+	timestamp := time.Now().UnixNano() / int64(time.Millisecond)
+	_, err := fmt.Fprintf(hmacSHA256, "%d\n%s", timestamp, secret)
+	if err != nil {
+		return 0, "", fmt.Errorf("dingtalk: failed to generate signature: %w", err)
+	}
+	return timestamp, base64.StdEncoding.EncodeToString(hmacSHA256.Sum(nil)), nil
+}
+
+// 发送消息接口的前处理器，可以用来更新消息、生成加密签名、设置消息幂等、设置@等
 type SendHandler func(*Send) error
+
+// UpdateMsg 更新消息
+func UpdateMsg[T Msg](fn func(T) T) SendHandler {
+	return func(s *Send) error {
+		t, ok := s.Msg.(T)
+		if !ok {
+			return fmt.Errorf("dingtalk: invalid msg type: %T", s.Msg)
+		}
+		s.Msg = fn(t)
+		return nil
+	}
+}
 
 // Secret 会自动设置生成的加密签名，密钥参数为机器人安全设置页面，加签一栏下面显示的 SEC 开头的字符串
 func Secret(secret string) SendHandler {
@@ -121,19 +133,8 @@ func AtUserID(ids ...string) SendHandler {
 	}
 }
 
-// UpdateMsg 更新消息
-func UpdateMsg[T Msg](fn func(T) T) SendHandler {
-	return func(s *Send) error {
-		t, ok := s.Msg.(T)
-		if !ok {
-			return fmt.Errorf("dingtalk: invalid msg type: %T", s.Msg)
-		}
-		s.Msg = fn(t)
-		return nil
-	}
-}
-
-var _ = []SendHandler{Secret(""), UUID(""), AtAll, AtMobile(""), AtUserID(""), UpdateMsg[Msg](nil)}
+// 内置了六个常用的处理器，可自行在代码中查看使用方法
+var _ = []SendHandler{UpdateMsg[Msg](nil), Secret(""), UUID(""), AtAll, AtMobile(""), AtUserID("")}
 
 // SendResponse 发送消息响应体
 type SendResponse struct {

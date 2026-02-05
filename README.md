@@ -58,14 +58,14 @@ type Bot struct {
 
 本库的方法参数与官方文档 [自定义机器人发送消息的消息类型](https://open.dingtalk.com/document/dingstart/custom-bot-send-message-type) 保持一致，你可以在文档中查看消息类型区别、参数含义、消息样式。
 
-### SendHandler 请求处理器
+### SendHandler 请求前处理器
 
 ```go
 // 发送消息接口的前处理器，可以用来生成的加密签名、设置消息幂等、设置@等
 type SendHandler func(*Send) error
 
-// 内置了五个常用的处理器，可自行在代码中查看使用方法
-var _ = []SendHandler{Secret(""), UUID(""), AtAll, AtMobile(""), AtUserID("")}
+// 内置了六个常用的处理器，可自行在代码中查看使用方法
+var _ = []SendHandler{UpdateMsg[Msg](nil), Secret(""), UUID(""), AtAll, AtMobile(""), AtUserID("")}
 ```
 
 ### Text 文本类型
