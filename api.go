@@ -121,7 +121,19 @@ func AtUserID(ids ...string) SendHandler {
 	}
 }
 
-var _ = []SendHandler{Secret(""), UUID(""), AtAll, AtMobile(""), AtUserID("")}
+// UpdateMsg 更新消息
+func UpdateMsg[T Msg](fn func(T) T) SendHandler {
+	return func(s *Send) error {
+		t, ok := s.Msg.(T)
+		if !ok {
+			return fmt.Errorf("dingtalk: invalid msg type: %T", s.Msg)
+		}
+		s.Msg = fn(t)
+		return nil
+	}
+}
+
+var _ = []SendHandler{Secret(""), UUID(""), AtAll, AtMobile(""), AtUserID(""), UpdateMsg[Msg](nil)}
 
 // SendResponse 发送消息响应体
 type SendResponse struct {
