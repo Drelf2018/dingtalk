@@ -28,7 +28,7 @@ type Bot struct {
 	// 每分钟发送消息限制量，平台规定每分钟最多发送 20 条消息。如果超过限制，会限流至下一分钟零秒时刻，值为零则不限流
 	Limit int `json:"limit" yaml:"limit" toml:"limit" long:"limit"`
 
-	// 发送限流器，每个分钟零秒时刻会清空通道，再填入设置的限制量个数空对象
+	// 限流器，发送请求前会读取其中的值，如果通道为空则认为超过发送消息限制量
 	limiter chan struct{}
 
 	once sync.Once
@@ -50,44 +50,42 @@ func (b *Bot) ContainsAnyKeyword(text string) bool {
 	return false
 }
 
-// Wait 在设置了每分钟发送消息限制量后返回一个用于判断是否可继续发送的通道
-func (b *Bot) Wait() <-chan struct{} {
+// reset 用于重置通道，每个分钟零秒时刻会清空通道，再根据限制量填入空结构体对象
+func (b *Bot) reset() {
+	for {
+		select {
+		case <-b.limiter:
+		default:
+			for i := 0; i < b.Limit; i++ {
+				b.limiter <- struct{}{}
+			}
+			return
+		}
+	}
+}
+
+// wait 在设置了每分钟发送消息限制量后，返回一个用于判断是否可继续发送的通道
+func (b *Bot) wait() <-chan struct{} {
 	if b.Limit <= 0 {
 		return nil
 	}
 	b.once.Do(func() {
-		b.limiter = make(chan struct{}, b.Limit)
+		b.limiter = make(chan struct{}, 20)
 		// 先充满通道
 		for i := 0; i < b.Limit; i++ {
 			b.limiter <- struct{}{}
 		}
 		// 每分钟触发一次重置
 		go func() {
-			// 用于重置通道
-			reset := func() {
-				for {
-					select {
-					case <-b.limiter:
-						// 每个分钟零秒时刻会清空通道
-					default:
-						// 再填入设置的限制量个数空对象
-						for i := 0; i < b.Limit; i++ {
-							b.limiter <- struct{}{}
-						}
-						return
-					}
-				}
-			}
 			// 先休眠至下一分钟零秒时刻
-			next := time.Now().Truncate(time.Minute).Add(time.Minute)
-			time.Sleep(time.Until(next))
-			// 重置一次
-			reset()
+			time.Sleep(time.Until(time.Now().Truncate(time.Minute).Add(time.Minute)))
+			// 立即重置一次
+			b.reset()
 			// 开始定时重置
 			ticker := time.NewTicker(time.Minute)
 			defer ticker.Stop()
 			for range ticker.C {
-				reset()
+				b.reset()
 			}
 		}()
 	})
@@ -98,9 +96,9 @@ func (b *Bot) Wait() <-chan struct{} {
 func (b *Bot) SendWithContext(ctx context.Context, msg Msg, handlers ...SendHandler) error {
 	if b.Limit > 0 {
 		select {
-		case <-b.Wait():
+		case <-b.wait():
 		default:
-			return fmt.Errorf("dingtalk: sending rate limit exceeded: %v/min", b.Limit)
+			return fmt.Errorf("dingtalk: sending rate limit exceeded: %d/min", b.Limit)
 		}
 	}
 	if b.Timeout > 0 {
