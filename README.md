@@ -48,6 +48,9 @@ type Bot struct {
 
 	// 全局请求超时时间，值为正时生效
 	Timeout time.Duration `json:"timeout" yaml:"timeout" toml:"timeout" long:"timeout"`
+
+	// 每分钟发送消息限制量，平台规定每分钟最多发送 20 条消息。如果超过限制，会限流至下一分钟零秒时刻，值为零则不限流
+	Limit int `json:"limit" yaml:"limit" toml:"limit" long:"limit"`
 }
 ```
 

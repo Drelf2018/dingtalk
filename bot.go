@@ -3,6 +3,7 @@ package dingtalk
 import (
 	"context"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -22,6 +23,14 @@ type Bot struct {
 
 	// 全局请求超时时间，值为正时生效
 	Timeout time.Duration `json:"timeout" yaml:"timeout" toml:"timeout" long:"timeout"`
+
+	// 每分钟发送消息限制量，平台规定每分钟最多发送 20 条消息。如果超过限制，会限流至下一分钟零秒时刻，值为零则不限流
+	Limit int `json:"limit" yaml:"limit" toml:"limit" long:"limit"`
+
+	// 发送限流器，每个分钟零秒时刻会清空通道，再填入设置的限制量个数空对象
+	limiter chan struct{}
+
+	once sync.Once
 }
 
 // ContainsAnyKeyword 检测字符串是否包含任意一个关键词，关键词切片为空也返回真
@@ -40,8 +49,64 @@ func (b *Bot) ContainsAnyKeyword(text string) bool {
 	return false
 }
 
+// Wait 在设置了每分钟发送消息限制量后返回一个用于判断是否可继续发送的通道
+func (b *Bot) Wait() <-chan struct{} {
+	if b.Limit <= 0 {
+		return nil
+	}
+	b.once.Do(func() {
+		b.limiter = make(chan struct{}, b.Limit)
+		// 先充满通道
+		for i := 0; i < b.Limit; i++ {
+			b.limiter <- struct{}{}
+		}
+		// 用于重置通道
+		reset := func() {
+			for {
+				select {
+				case <-b.limiter:
+					// 每个分钟零秒时刻会清空通道
+				default:
+					// 再填入设置的限制量个数空对象
+					for i := 0; i < b.Limit; i++ {
+						b.limiter <- struct{}{}
+						// 防止积攒的请求突增
+						time.Sleep(100 * time.Millisecond)
+					}
+					return
+				}
+			}
+		}
+		// 每分钟触发一次重置
+		go func() {
+			// 先休眠至下一分钟零秒时刻
+			next := time.Now().Truncate(time.Minute).Add(time.Minute)
+			time.Sleep(time.Until(next))
+			// 重置一次
+			reset()
+			// 开始定时重置
+			ticker := time.NewTicker(time.Minute)
+			defer ticker.Stop()
+			for range ticker.C {
+				reset()
+			}
+		}()
+	})
+	return b.limiter
+}
+
 // SendWithContext 携带上下文发送消息
 func (b *Bot) SendWithContext(ctx context.Context, msg Msg, handlers ...SendHandler) error {
+	if b.Limit > 0 {
+		// 请求积攒十分钟仍未等到发送时机，则视为请求失败
+		timeout, cancel := context.WithTimeout(ctx, 10*time.Minute)
+		defer cancel()
+		select {
+		case <-timeout.Done():
+			return timeout.Err()
+		case <-b.Wait():
+		}
+	}
 	if b.Timeout > 0 {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, b.Timeout)
