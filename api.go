@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"reflect"
 	"time"
 
 	"github.com/Drelf2018/req"
@@ -41,9 +40,6 @@ type Send struct {
 
 	// 被@的群成员信息
 	At At `req:"body,omitempty"`
-
-	// 请求头
-	ContentType string `req:"header" default:"application/json"`
 }
 
 func (*Send) Method() string {
@@ -56,20 +52,27 @@ func (*Send) RawURL() string {
 
 var _ req.API = (*Send)(nil)
 
-func (s *Send) Body(r *http.Request, value reflect.Value, body []reflect.StructField) (io.Reader, error) {
-	m := method.MakeJSONMap(r.Context(), value, body)
+func (s *Send) Body(ctx context.Context, api method.API, reader method.CookieReader, body []method.Field) (io.Reader, http.Header, error) {
+	m, err := method.MakeMap(ctx, api, reader, body)
+	if err != nil {
+		return nil, nil, err
+	}
 	if s.Msg != nil {
 		m["msgtype"] = s.Msg.Type()
 		m[string(s.Msg.Type())] = s.Msg
 	}
-	return method.NewJSONReader(m)
+	r, err := method.NewJSONReader(m)
+	if err != nil {
+		return nil, nil, err
+	}
+	return r, method.ContentType("application/json"), nil
 }
 
-var _ req.APIBody = (*Send)(nil)
+var _ method.APIBody = (*Send)(nil)
 
 // GenerateSign 生成加密时间戳和签名，加签的方式是将时间戳和密钥当做签名字符串，
 // 开发者服务内当前系统时间戳，单位是毫秒，与请求调用时间误差不能超过 1 小时，
-// 使用 HmacSHA256 算法计算签名，然后进行 Base64 编码，得到最终的签名
+// 使用 HmacSHA256 算法计算签名，然后进行 Base64 编码，得到最终的签名。
 func GenerateSign(secret string) (int64, string, error) {
 	hmacSHA256 := hmac.New(sha256.New, []byte(secret))
 	timestamp := time.Now().UnixNano() / int64(time.Millisecond)
